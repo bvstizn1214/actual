@@ -6,9 +6,9 @@ public class TiendaOnline {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         List<Component> productosDisponibles = Arrays.asList(
-            new Descuento10(new Producto("Camisa", 9990)),
-            new Descuento15(new Producto("Pantalón", 12990)),
-            new Descuento20(new Producto("Zapatos", 39990))
+            new Descuento10(new Producto("Camisa", 9990, "Ropa")),
+            new Descuento15(new Producto("Pantalón", 12990, "Ropa")),
+            new Descuento20(new Producto("Zapatos", 39990, "Calzado"))
         );
         List<Component> carrito = new ArrayList<>();
         Invoker invoker = new Invoker();

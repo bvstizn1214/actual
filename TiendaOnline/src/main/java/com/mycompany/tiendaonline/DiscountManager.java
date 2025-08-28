@@ -1,18 +1,28 @@
 package com.mycompany.tiendaonline;
 
+/**
+ * Singleton responsable de aplicar descuentos usando Decorator.
+ */
 public class DiscountManager {
-    private static DiscountManager instancia;
+    private static DiscountManager instance;
 
     private DiscountManager() {}
 
     public static DiscountManager getInstance() {
-        if (instancia == null) {
-            instancia = new DiscountManager();
+        if (instance == null) {
+            instance = new DiscountManager();
         }
-        return instancia;
+        return instance;
     }
 
-    public int aplicarDescuento(Component producto) {
-        return producto.aplicarDescuento();
+    /**
+     * Aplica el decorador recibido al componente (producto).
+     */
+    public int aplicarDescuento(Component producto, Decorator decorador) {
+        decorador = decorador == null ? null : decorador;
+        if (decorador != null) {
+            return decorador.aplicarDescuento();
+        }
+        return producto.getPrecio();
     }
 }
