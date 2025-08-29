@@ -1,5 +1,20 @@
 package com.mycompany.tiendaonline;
 
+import com.mycompany.tiendaonline.controller.ProductosController;
+import com.mycompany.tiendaonline.controller.DescuentosController;
+import com.mycompany.tiendaonline.controller.CarritoController;
+import com.mycompany.tiendaonline.view.ProductosView;
+import com.mycompany.tiendaonline.view.CarritoView;
+import com.mycompany.tiendaonline.view.DescuentosView;
+import com.mycompany.tiendaonline.command.Invoker;
+import com.mycompany.tiendaonline.command.AgregarProductoCommand;
+import com.mycompany.tiendaonline.decorator.Descuento15;
+import com.mycompany.tiendaonline.decorator.Descuento20;
+import com.mycompany.tiendaonline.decorator.Descuento10;
+import com.mycompany.tiendaonline.decorator.Component;
+import com.mycompany.tiendaonline.model.Usuario;
+import com.mycompany.tiendaonline.model.Pedido;
+import com.mycompany.tiendaonline.model.Producto;
 import java.util.*;
 
 public class TiendaOnline {
@@ -14,34 +29,37 @@ public class TiendaOnline {
         Pedido pedido = new Pedido(usuario);
         Invoker invoker = new Invoker();
 
+        // Vistas y controladores
+        ProductosView productosView = new ProductosView();
+        CarritoView carritoView = new CarritoView();
+        DescuentosView descuentosView = new DescuentosView();
+
+        ProductosController productosController = new ProductosController(productosDisponibles, productosView);
+        CarritoController carritoController = new CarritoController(pedido, carritoView);
+        DescuentosController descuentosController = new DescuentosController(descuentosView);
+
         while (true) {
             System.out.println("\n--- MENÚ TIENDA ONLINE ---");
             System.out.println("1. Ver productos");
             System.out.println("2. Agregar producto al carrito");
             System.out.println("3. Ver carrito");
-            System.out.println("4. Pagar");
+            System.out.println("4. Aplicar descuento a producto");
             System.out.println("5. Salir");
             System.out.print("Selecciona una opción: ");
             String opcion = scanner.nextLine();
 
             switch (opcion) {
                 case "1":
-                    mostrarProductos(productosDisponibles);
+                    productosController.mostrarProductos();
                     break;
                 case "2":
                     agregarProducto(productosDisponibles, pedido, invoker, scanner);
                     break;
                 case "3":
-                    mostrarCarrito(pedido);
+                    carritoController.mostrarCarrito();
                     break;
                 case "4":
-                    if (pedido.getProductos().isEmpty()) {
-                        System.out.println("El carrito está vacío.");
-                    } else {
-                        if (realizarPago(pedido, scanner)) {
-                            pedido.getProductos().clear();
-                        }
-                    }
+                    aplicarDescuento(productosDisponibles, descuentosController, scanner);
                     break;
                 case "5":
                     System.out.println("¡Gracias por usar la tienda!");
@@ -52,84 +70,28 @@ public class TiendaOnline {
         }
     }
 
-    private static void mostrarProductos(List<Component> productos) {
-        System.out.println("\nProductos disponibles:");
-        int idx = 1;
-        for (Component p : productos) {
-            System.out.printf("%d. %s - $%d CLP (Descuento aplicado: $%d CLP)\n", idx++, p.getNombre(), p.getPrecio(), p.aplicarDescuento());
-        }
-    }
-
     private static void agregarProducto(List<Component> productos, Pedido pedido, Invoker invoker, Scanner scanner) {
-        while (true) {
-            mostrarProductos(productos);
-            System.out.print("Selecciona el número del producto: ");
-            String input = scanner.nextLine();
-            int seleccion = validarNumero(input, 1, productos.size());
-            if (seleccion == -1) {
-                System.out.println("Selección inválida. Intenta nuevamente.");
-                continue;
-            }
-            Component producto = productos.get(seleccion - 1);
-            invoker.agregarComando(new AgregarProductoCommand(pedido, producto));
-            invoker.ejecutarComandos();
-            break;
+        System.out.print("Selecciona el número del producto a agregar: ");
+        int seleccion = validarNumero(scanner.nextLine(), 1, productos.size());
+        if (seleccion == -1) {
+            System.out.println("Selección inválida.");
+            return;
         }
+        Component producto = productos.get(seleccion - 1);
+        invoker.agregarComando(new AgregarProductoCommand(pedido, producto));
+        invoker.ejecutarComandos();
+        System.out.println("Producto agregado al carrito.");
     }
 
-    private static void mostrarCarrito(Pedido pedido) {
-        System.out.println("\nCarrito de compras:");
-        int idx = 1;
-        int total = 0;
-        for (Component c : pedido.getProductos()) {
-            int precioFinal = c.aplicarDescuento();
-            System.out.printf("%d. %s - Precio original: $%d CLP | Precio final: $%d CLP\n", idx++, c.getNombre(), c.getPrecio(), precioFinal);
-            total += precioFinal;
+    private static void aplicarDescuento(List<Component> productos, DescuentosController descuentosController, Scanner scanner) {
+        System.out.print("Selecciona el número del producto para ver descuento: ");
+        int seleccion = validarNumero(scanner.nextLine(), 1, productos.size());
+        if (seleccion == -1) {
+            System.out.println("Selección inválida.");
+            return;
         }
-        System.out.printf("Total a pagar: $%d CLP\n", total);
-    }
-
-    private static boolean realizarPago(Pedido pedido, Scanner scanner) {
-        int total = pedido.getProductos().stream().mapToInt(Component::aplicarDescuento).sum();
-        while (true) {
-            System.out.println("\nMétodos de pago:");
-            System.out.println("1. Débito");
-            System.out.println("2. Efectivo");
-            System.out.print("Elige una opción: ");
-            String metodo = scanner.nextLine();
-
-            if (metodo.equals("1")) {
-                while (true) {
-                    System.out.print("Ingrese su clave de 4 dígitos: ");
-                    String clave = scanner.nextLine();
-                    if (!clave.matches("\\d{4}")) {
-                        System.out.println("Clave inválida. Debe ser 4 dígitos numéricos.");
-                        continue;
-                    }
-                    System.out.printf("Pago de $%d CLP realizado con débito.\n¡Gracias por su compra!\n", total);
-                    return true;
-                }
-            } else if (metodo.equals("2")) {
-                while (true) {
-                    System.out.printf("Monto a pagar: $%d CLP\n", total);
-                    System.out.print("Ingrese el monto entregado: ");
-                    String montoStr = scanner.nextLine();
-                    try {
-                        int monto = Integer.parseInt(montoStr);
-                        if (monto < total) {
-                            System.out.println("Monto insuficiente. Intente de nuevo.");
-                            continue;
-                        }
-                        System.out.printf("Pago realizado. Vuelto: $%d CLP\n¡Gracias por su compra!\n", monto - total);
-                        return true;
-                    } catch (NumberFormatException e) {
-                        System.out.println("Monto inválido. Debe ser un número entero.");
-                    }
-                }
-            } else {
-                System.out.println("Método de pago inválido. Intente de nuevo.");
-            }
-        }
+        Component producto = productos.get(seleccion - 1);
+        descuentosController.mostrarDescuento(producto);
     }
 
     private static int validarNumero(String input, int min, int max) {
